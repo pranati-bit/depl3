@@ -1,36 +1,36 @@
-from flask import Flask, request
+from flask import Flask, render_template, request
+import psycopg2
+import os
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET", "POST"])
-def home():
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+def get_connection():
+    return psycopg2.connect(DATABASE_URL)
+
+@app.route("/", methods=["GET","POST"])
+def index():
+    student = None
+    
     if request.method == "POST":
-        sapid = request.form["sapid"]
-        rollno = request.form["rollno"]
-        name = request.form["name"]
-        div = request.form["div"]
-        cgpa = request.form["cgpa"]
-
-        return f"""
-        <h2>Student Details</h2>
-        SAP ID: {sapid}<br>
-        Roll No: {rollno}<br>
-        Name: {name}<br>
-        Division: {div}<br>
-        CGPA: {cgpa}
-        """
-
-    return """
-    <h2>Enter Student Details</h2>
-    <form method="post">
-        SAP ID: <input type="text" name="sapid"><br><br>
-        Roll No: <input type="text" name="rollno"><br><br>
-        Name: <input type="text" name="name"><br><br>
-        Division: <input type="text" name="div"><br><br>
-        CGPA: <input type="text" name="cgpa"><br><br>
-        <input type="submit">
-    </form>
-    """
+        search = request.form["search"]
+        
+        conn = get_connection()
+        cur = conn.cursor()
+        
+        cur.execute("""
+        SELECT name, sap_id, course, roll_number, gpa
+        FROM students
+        WHERE name ILIKE %s OR sap_id ILIKE %s OR roll_number ILIKE %s
+        """, (f"%{search}%",f"%{search}%",f"%{search}%"))
+        
+        student = cur.fetchone()
+        
+        cur.close()
+        conn.close()
+    
+    return render_template("index.html", student=student)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
